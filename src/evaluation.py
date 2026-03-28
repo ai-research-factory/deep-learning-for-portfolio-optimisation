@@ -1,6 +1,7 @@
 """
 Walk-forward evaluation framework for portfolio optimization.
-Phase 3: Implements walk-forward validation, backtesting, and baseline comparisons.
+Phase 3: Walk-forward validation and baseline comparisons.
+Phase 4: Enhanced transaction cost model with sensitivity analysis.
 """
 import json
 import numpy as np
@@ -11,6 +12,8 @@ from sklearn.preprocessing import StandardScaler
 from src.backtest import (
     BacktestConfig,
     BacktestResult,
+    CostBreakdown,
+    TransactionCostModel,
     WalkForwardValidator,
     calculate_costs,
     compute_metrics,
@@ -58,11 +61,10 @@ class WalkForwardEvaluator:
             train_ratio=1.0,
         )
 
-    def run(self, verbose: bool = True) -> dict:
-        """Run the full walk-forward backtest.
+    def _run_windows(self, verbose: bool = True) -> dict:
+        """Run walk-forward windows and return raw window data.
 
-        Returns:
-            Dict with 'model' and 'baseline' results and metrics.
+        Returns dict with per-window gross returns, weights, and metadata.
         """
         if verbose:
             print("Fetching data...")
@@ -80,14 +82,9 @@ class WalkForwardEvaluator:
         assert len(seq_returns) == len(X_all)
 
         validator = WalkForwardValidator(self.config)
-
         seq_df = pd.DataFrame(index=dates_all, data={"dummy": 0})
 
-        model_results = []
-        baseline_results = []
-        model_all_returns = []
-        baseline_all_returns = []
-
+        windows = []
         window_idx = 0
         for train_idx, test_idx in validator.split(seq_df):
             window_idx += 1
@@ -99,8 +96,8 @@ class WalkForwardEvaluator:
             X_test = X_all[test_idx]
             y_test = y_all[test_idx]
             test_dates = dates_all[test_idx]
-
             train_dates = dates_all[train_idx]
+
             if verbose:
                 print(f"  Train: {train_dates[0].date()} to {train_dates[-1].date()} ({len(train_idx)} samples)")
                 print(f"  Test:  {test_dates[0].date()} to {test_dates[-1].date()} ({len(test_idx)} samples)")
@@ -129,7 +126,7 @@ class WalkForwardEvaluator:
             # Predict weights on test set
             model_weights = predict_weights(model, X_test_scaled)
 
-            # Model portfolio returns
+            # Model gross portfolio returns
             model_port_returns = (model_weights * y_test).sum(axis=1)
             model_port_series = pd.Series(model_port_returns, index=test_dates)
 
@@ -138,84 +135,213 @@ class WalkForwardEvaluator:
             baseline_port_returns = (equal_weights * y_test).sum(axis=1)
             baseline_port_series = pd.Series(baseline_port_returns, index=test_dates)
 
-            # Compute costs
-            model_positions = pd.Series(
-                np.ones(len(test_idx)), index=test_dates
+            windows.append({
+                "window_idx": window_idx,
+                "train_dates": train_dates,
+                "test_dates": test_dates,
+                "model_weights": model_weights,
+                "model_gross_returns": model_port_series,
+                "baseline_weights": equal_weights,
+                "baseline_gross_returns": baseline_port_series,
+                "n_assets": n_assets,
+            })
+
+        return {"windows": windows, "n_assets": n_assets}
+
+    def _apply_costs_to_windows(
+        self,
+        window_data: dict,
+        cost_model: TransactionCostModel,
+        verbose: bool = True,
+    ) -> dict:
+        """Apply a cost model to window data, returning model and baseline results."""
+        model_results = []
+        baseline_results = []
+
+        for w in window_data["windows"]:
+            # Model costs
+            model_net, model_cb = cost_model.apply_costs(
+                w["model_gross_returns"], w["model_weights"]
             )
-            # Approximate trades as weight changes between consecutive days
-            weight_changes = np.abs(np.diff(model_weights, axis=0)).sum(axis=1)
-            trade_series = pd.Series(
-                np.concatenate([[0.0], weight_changes]), index=test_dates
+            # Baseline: equal-weight has near-zero turnover (no active rebalancing)
+            baseline_net, baseline_cb = cost_model.apply_costs(
+                w["baseline_gross_returns"], w["baseline_weights"]
             )
 
-            cost_per_trade = (self.config.fee_bps + self.config.slippage_bps) / 10000
-            model_costs = trade_series * cost_per_trade
-            model_net_returns = model_port_series - model_costs
+            model_gross_metrics = compute_metrics(w["model_gross_returns"])
+            model_net_metrics = compute_metrics(model_net)
+            baseline_gross_metrics = compute_metrics(w["baseline_gross_returns"])
+            baseline_net_metrics = compute_metrics(baseline_net)
 
-            # Baseline has no rebalancing cost (equal weight is maintained by market moves,
-            # but we approximate small rebalancing costs)
-            baseline_trade_series = pd.Series(0.0, index=test_dates)
-            baseline_net_returns = baseline_port_series
-
-            # Compute metrics
-            model_gross_metrics = compute_metrics(model_port_series)
-            model_net_metrics = compute_metrics(model_net_returns)
-            baseline_metrics = compute_metrics(baseline_port_series)
-
-            total_trades = int((trade_series > 0.01).sum())
+            total_trades = model_cb.n_rebalance_days
 
             model_result = BacktestResult(
-                window=window_idx,
-                train_start=str(train_dates[0].date()),
-                train_end=str(train_dates[-1].date()),
-                test_start=str(test_dates[0].date()),
-                test_end=str(test_dates[-1].date()),
+                window=w["window_idx"],
+                train_start=str(w["train_dates"][0].date()),
+                train_end=str(w["train_dates"][-1].date()),
+                test_start=str(w["test_dates"][0].date()),
+                test_end=str(w["test_dates"][-1].date()),
                 gross_sharpe=model_gross_metrics["sharpeRatio"],
                 net_sharpe=model_net_metrics["sharpeRatio"],
+                gross_annual_return=model_gross_metrics["annualReturn"],
                 annual_return=model_net_metrics["annualReturn"],
                 max_drawdown=model_net_metrics["maxDrawdown"],
                 total_trades=total_trades,
                 hit_rate=model_net_metrics["hitRate"],
-                pnl_series=model_net_returns,
+                cost_breakdown=model_cb,
+                pnl_series=model_net,
             )
             model_results.append(model_result)
-            model_all_returns.append(model_net_returns)
 
             baseline_result = BacktestResult(
-                window=window_idx,
-                train_start=str(train_dates[0].date()),
-                train_end=str(train_dates[-1].date()),
-                test_start=str(test_dates[0].date()),
-                test_end=str(test_dates[-1].date()),
-                gross_sharpe=baseline_metrics["sharpeRatio"],
-                net_sharpe=baseline_metrics["sharpeRatio"],
-                annual_return=baseline_metrics["annualReturn"],
-                max_drawdown=baseline_metrics["maxDrawdown"],
-                total_trades=0,
-                hit_rate=baseline_metrics["hitRate"],
+                window=w["window_idx"],
+                train_start=str(w["train_dates"][0].date()),
+                train_end=str(w["train_dates"][-1].date()),
+                test_start=str(w["test_dates"][0].date()),
+                test_end=str(w["test_dates"][-1].date()),
+                gross_sharpe=baseline_gross_metrics["sharpeRatio"],
+                net_sharpe=baseline_net_metrics["sharpeRatio"],
+                gross_annual_return=baseline_gross_metrics["annualReturn"],
+                annual_return=baseline_net_metrics["annualReturn"],
+                max_drawdown=baseline_net_metrics["maxDrawdown"],
+                total_trades=baseline_cb.n_rebalance_days,
+                hit_rate=baseline_net_metrics["hitRate"],
+                cost_breakdown=baseline_cb,
             )
             baseline_results.append(baseline_result)
-            baseline_all_returns.append(baseline_port_series)
 
             if verbose:
-                print(f"  Model  — Gross Sharpe: {model_gross_metrics['sharpeRatio']:.4f}, "
-                      f"Net Sharpe: {model_net_metrics['sharpeRatio']:.4f}")
-                print(f"  1/N    — Sharpe: {baseline_metrics['sharpeRatio']:.4f}")
+                print(f"  Window {w['window_idx']} — "
+                      f"Model Gross: {model_gross_metrics['sharpeRatio']:.4f}, "
+                      f"Net: {model_net_metrics['sharpeRatio']:.4f} | "
+                      f"Turnover: {model_cb.avg_daily_turnover:.4f}")
 
-        # Aggregate
-        model_metrics_json = generate_metrics_json(model_results, self.config)
-        baseline_metrics_json = generate_metrics_json(baseline_results, self.config)
+        return {
+            "model_results": model_results,
+            "baseline_results": baseline_results,
+        }
+
+    def run(self, verbose: bool = True) -> dict:
+        """Run the full walk-forward backtest.
+
+        Returns:
+            Dict with 'model' and 'baseline' results and metrics.
+        """
+        window_data = self._run_windows(verbose=verbose)
+        cost_model = TransactionCostModel.from_config(self.config)
+
+        if verbose:
+            print(f"\nApplying costs: {cost_model.fee_bps}bps fee + {cost_model.slippage_bps}bps slippage")
+
+        results = self._apply_costs_to_windows(window_data, cost_model, verbose=verbose)
+
+        model_metrics_json = generate_metrics_json(results["model_results"], self.config)
+        baseline_metrics_json = generate_metrics_json(results["baseline_results"], self.config)
 
         return {
             "model": {
-                "results": model_results,
+                "results": results["model_results"],
                 "metrics": model_metrics_json,
             },
             "baseline": {
-                "results": baseline_results,
+                "results": results["baseline_results"],
                 "metrics": baseline_metrics_json,
             },
+            "_window_data": window_data,
         }
+
+    def run_cost_sensitivity(
+        self,
+        cost_levels_bps: list[float] | None = None,
+        verbose: bool = True,
+    ) -> dict:
+        """Run cost sensitivity analysis at multiple cost levels.
+
+        Args:
+            cost_levels_bps: Total cost levels (fee+slippage) in bps to test.
+            verbose: Print progress.
+
+        Returns:
+            Dict with sensitivity results per cost level.
+        """
+        if cost_levels_bps is None:
+            cost_levels_bps = [0, 5, 10, 15, 20, 30]
+
+        window_data = self._run_windows(verbose=verbose)
+
+        sensitivity = []
+        for total_bps in cost_levels_bps:
+            # Split total cost 2:1 between fees and slippage
+            fee_bps = round(total_bps * 2 / 3, 1)
+            slippage_bps = round(total_bps - fee_bps, 1)
+            cost_model = TransactionCostModel(fee_bps=fee_bps, slippage_bps=slippage_bps)
+
+            if verbose:
+                print(f"\n--- Cost Level: {total_bps}bps (fee={fee_bps}, slippage={slippage_bps}) ---")
+
+            results = self._apply_costs_to_windows(window_data, cost_model, verbose=verbose)
+
+            config_at_level = BacktestConfig(
+                fee_bps=fee_bps,
+                slippage_bps=slippage_bps,
+                n_splits=self.config.n_splits,
+                gap=self.config.gap,
+                min_train_size=self.config.min_train_size,
+                train_ratio=self.config.train_ratio,
+            )
+            model_metrics = generate_metrics_json(results["model_results"], config_at_level)
+            baseline_metrics = generate_metrics_json(results["baseline_results"], config_at_level)
+
+            avg_turnover = float(np.mean([
+                r.cost_breakdown.avg_daily_turnover
+                for r in results["model_results"]
+                if r.cost_breakdown
+            ]))
+
+            sensitivity.append({
+                "total_cost_bps": total_bps,
+                "fee_bps": fee_bps,
+                "slippage_bps": slippage_bps,
+                "model_net_sharpe": model_metrics["transactionCosts"]["netSharpe"],
+                "model_gross_sharpe": model_metrics["sharpeRatio"],
+                "model_net_annual_return": model_metrics["annualReturn"],
+                "baseline_net_sharpe": baseline_metrics["transactionCosts"]["netSharpe"],
+                "avg_daily_turnover": round(avg_turnover, 6),
+                "positive_windows": model_metrics["walkForward"]["positiveWindows"],
+            })
+
+        return {
+            "sensitivity": sensitivity,
+            "_window_data": window_data,
+        }
+
+
+def _serialize_result(r: BacktestResult) -> dict:
+    """Serialize a BacktestResult to a JSON-compatible dict."""
+    d = {
+        "window": r.window,
+        "train_start": r.train_start,
+        "train_end": r.train_end,
+        "test_start": r.test_start,
+        "test_end": r.test_end,
+        "gross_sharpe": r.gross_sharpe,
+        "net_sharpe": r.net_sharpe,
+        "gross_annual_return": r.gross_annual_return,
+        "annual_return": r.annual_return,
+        "max_drawdown": r.max_drawdown,
+        "total_trades": r.total_trades,
+        "hit_rate": r.hit_rate,
+    }
+    if r.cost_breakdown:
+        d["cost_breakdown"] = {
+            "total_cost": r.cost_breakdown.total_cost,
+            "fee_cost": r.cost_breakdown.fee_cost,
+            "slippage_cost": r.cost_breakdown.slippage_cost,
+            "total_turnover": r.cost_breakdown.total_turnover,
+            "avg_daily_turnover": r.cost_breakdown.avg_daily_turnover,
+            "n_rebalance_days": r.cost_breakdown.n_rebalance_days,
+        }
+    return d
 
 
 def save_backtest_results(output: dict, output_path: str | Path) -> None:
@@ -226,43 +352,17 @@ def save_backtest_results(output: dict, output_path: str | Path) -> None:
     result = {
         "model": {
             "metrics": output["model"]["metrics"],
-            "windows": [
-                {
-                    "window": r.window,
-                    "train_start": r.train_start,
-                    "train_end": r.train_end,
-                    "test_start": r.test_start,
-                    "test_end": r.test_end,
-                    "gross_sharpe": r.gross_sharpe,
-                    "net_sharpe": r.net_sharpe,
-                    "annual_return": r.annual_return,
-                    "max_drawdown": r.max_drawdown,
-                    "total_trades": r.total_trades,
-                    "hit_rate": r.hit_rate,
-                }
-                for r in output["model"]["results"]
-            ],
+            "windows": [_serialize_result(r) for r in output["model"]["results"]],
         },
         "baseline": {
             "metrics": output["baseline"]["metrics"],
-            "windows": [
-                {
-                    "window": r.window,
-                    "train_start": r.train_start,
-                    "train_end": r.train_end,
-                    "test_start": r.test_start,
-                    "test_end": r.test_end,
-                    "gross_sharpe": r.gross_sharpe,
-                    "net_sharpe": r.net_sharpe,
-                    "annual_return": r.annual_return,
-                    "max_drawdown": r.max_drawdown,
-                    "total_trades": r.total_trades,
-                    "hit_rate": r.hit_rate,
-                }
-                for r in output["baseline"]["results"]
-            ],
+            "windows": [_serialize_result(r) for r in output["baseline"]["results"]],
         },
     }
+
+    # Include cost sensitivity if present
+    if "sensitivity" in output:
+        result["cost_sensitivity"] = output["sensitivity"]
 
     with open(output_path, "w") as f:
         json.dump(result, f, indent=2)

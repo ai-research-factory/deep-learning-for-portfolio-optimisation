@@ -1,0 +1,68 @@
+[
+  {
+    "total_cost_bps": 0.0,
+    "fee_bps": 0.0,
+    "slippage_bps": 0.0,
+    "model_net_sharpe": 1.0844,
+    "model_gross_sharpe": 1.0844,
+    "model_net_annual_return": 0.1754,
+    "baseline_net_sharpe": 1.1041,
+    "avg_daily_turnover": 0.037523,
+    "positive_windows": 4
+  },
+  {
+    "total_cost_bps": 5.0,
+    "fee_bps": 3.3,
+    "slippage_bps": 1.7,
+    "model_net_sharpe": 1.0543,
+    "model_gross_sharpe": 1.0844,
+    "model_net_annual_return": 0.1696,
+    "baseline_net_sharpe": 1.1041,
+    "avg_daily_turnover": 0.037523,
+    "positive_windows": 4
+  },
+  {
+    "total_cost_bps": 10.0,
+    "fee_bps": 6.7,
+    "slippage_bps": 3.3,
+    "model_net_sharpe": 1.0243,
+    "model_gross_sharpe": 1.0844,
+    "model_net_annual_return": 0.1637,
+    "baseline_net_sharpe": 1.1041,
+    "avg_daily_turnover": 0.037523,
+    "positive_windows": 4
+  },
+  {
+    "total_cost_bps": 15.0,
+    "fee_bps": 10.0,
+    "slippage_bps": 5.0,
+    "model_net_sharpe": 0.9942,
+    "model_gross_sharpe": 1.0844,
+    "model_net_annual_return": 0.1579,
+    "baseline_net_sharpe": 1.1041,
+    "avg_daily_turnover": 0.037523,
+    "positive_windows": 4
+  },
+  {
+    "total_cost_bps": 20.0,
+    "fee_bps": 13.3,
+    "slippage_bps": 6.7,
+    "model_net_sharpe": 0.9642,
+    "model_gross_sharpe": 1.0844,
+    "model_net_annual_return": 0.1522,
+    "baseline_net_sharpe": 1.1041,
+    "avg_daily_turnover": 0.037523,
+    "positive_windows": 4
+  },
+  {
+    "total_cost_bps": 30.0,
+    "fee_bps": 20.0,
+    "slippage_bps": 10.0,
+    "model_net_sharpe": 0.9041,
+    "model_gross_sharpe": 1.0844,
+    "model_net_annual_return": 0.1407,
+    "baseline_net_sharpe": 1.1041,
+    "avg_daily_turnover": 0.037523,
+    "positive_windows": 4
+  }
+]

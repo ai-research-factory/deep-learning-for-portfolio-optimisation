@@ -24,6 +24,9 @@ Data is fetched from the ARF Data API at runtime. Do not commit data files.
 # Run walk-forward backtest
 python3 -m src.cli run-backtest --config configs/default.yaml
 
+# Run cost sensitivity analysis
+python3 -m src.cli run-cost-analysis --config configs/default.yaml
+
 # Run tests
 python3 -m pytest tests/ -v
 ```
@@ -33,6 +36,34 @@ python3 -m pytest tests/ -v
 Each cycle produces:
 - `reports/cycle_N/metrics.json` — Structured metrics
 - `reports/cycle_N/technical_findings.md` — Technical summary
+
+### Cycle 4 Results (Phase 4: Transaction Cost Model)
+
+Results from `reports/cycle_4/metrics.json`:
+
+| Metric | LSTM Model (Gross) | LSTM Model (Net) | 1/N Baseline |
+|---|---|---|---|
+| Avg OOS Sharpe | 0.7052 | 0.6161 | 1.1041 |
+| Annual Return | — | 7.16% | 11.65% |
+| Max Drawdown | — | -16.93% | -14.89% |
+| Hit Rate | — | 53.83% | 53.51% |
+| Positive Windows | — | 4/5 | 5/5 |
+| Cost Impact (Sharpe) | — | -0.0891 | 0.0 |
+
+Cost sensitivity analysis (from `reports/cycle_4/cost_sensitivity.json`):
+
+| Cost (bps) | Model Net Sharpe | 1/N Net Sharpe |
+|---|---|---|
+| 0 | 1.0844 | 1.1041 |
+| 5 | 1.0543 | 1.1041 |
+| 10 | 1.0243 | 1.1041 |
+| 15 | 0.9942 | 1.1041 |
+| 20 | 0.9642 | 1.1041 |
+| 30 | 0.9041 | 1.1041 |
+
+Walk-forward validation: 5 expanding windows, 10 ETF universe, 60-day lookback, transaction costs 15bps (10bps fee + 5bps slippage).
+
+See `reports/cycle_4/technical_findings.md` for detailed analysis.
 
 ### Cycle 3 Results (Phase 3: Walk-Forward Evaluation)
 
@@ -45,7 +76,5 @@ Results from `reports/cycle_3/metrics.json`:
 | Max Drawdown | -14.50% | -14.89% |
 | Hit Rate | 55.0% | 53.5% |
 | Positive Windows | 4/5 | 5/5 |
-
-Walk-forward validation: 5 expanding windows, 10 ETF universe, 60-day lookback, transaction costs 15bps.
 
 See `reports/cycle_3/technical_findings.md` for detailed analysis.

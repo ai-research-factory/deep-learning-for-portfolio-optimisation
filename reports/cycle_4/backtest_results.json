@@ -1,0 +1,266 @@
+{
+  "model": {
+    "metrics": {
+      "sharpeRatio": 0.7052,
+      "annualReturn": 0.0716,
+      "maxDrawdown": -0.1693,
+      "hitRate": 0.5383,
+      "totalTrades": 660,
+      "transactionCosts": {
+        "feeBps": 10.0,
+        "slippageBps": 5.0,
+        "netSharpe": 0.6161
+      },
+      "walkForward": {
+        "windows": 5,
+        "positiveWindows": 4,
+        "avgOosSharpe": 0.6161
+      },
+      "customMetrics": {}
+    },
+    "windows": [
+      {
+        "window": 1,
+        "train_start": "2021-06-24",
+        "train_end": "2022-06-27",
+        "test_start": "2022-06-29",
+        "test_end": "2023-03-28",
+        "gross_sharpe": -0.6202,
+        "net_sharpe": -0.6427,
+        "gross_annual_return": -0.1205,
+        "annual_return": -0.124,
+        "max_drawdown": -0.1221,
+        "total_trades": 87,
+        "hit_rate": 0.4468,
+        "cost_breakdown": {
+          "total_cost": 0.003020495648961514,
+          "fee_cost": 0.0020136637659743427,
+          "slippage_cost": 0.0010068318829871714,
+          "total_turnover": 2.013663765974343,
+          "avg_daily_turnover": 0.01071097747858693,
+          "n_rebalance_days": 87
+        }
+      },
+      {
+        "window": 2,
+        "train_start": "2021-06-24",
+        "train_end": "2023-03-27",
+        "test_start": "2023-03-29",
+        "test_end": "2023-12-26",
+        "gross_sharpe": 0.7444,
+        "net_sharpe": 0.7058,
+        "gross_annual_return": 0.074,
+        "annual_return": 0.0698,
+        "max_drawdown": -0.0622,
+        "total_trades": 92,
+        "hit_rate": 0.5106,
+        "cost_breakdown": {
+          "total_cost": 0.00296946903783828,
+          "fee_cost": 0.0019796460252255203,
+          "slippage_cost": 0.0009898230126127601,
+          "total_turnover": 1.9796460252255201,
+          "avg_daily_turnover": 0.010530032049071915,
+          "n_rebalance_days": 92
+        }
+      },
+      {
+        "window": 3,
+        "train_start": "2021-06-24",
+        "train_end": "2023-12-22",
+        "test_start": "2023-12-27",
+        "test_end": "2024-09-25",
+        "gross_sharpe": 1.8116,
+        "net_sharpe": 1.6728,
+        "gross_annual_return": 0.2072,
+        "annual_return": 0.1893,
+        "max_drawdown": -0.0779,
+        "total_trades": 166,
+        "hit_rate": 0.5904,
+        "cost_breakdown": {
+          "total_cost": 0.011125938809942455,
+          "fee_cost": 0.007417292539961637,
+          "slippage_cost": 0.0037086462699808184,
+          "total_turnover": 7.417292539961636,
+          "avg_daily_turnover": 0.03945368372320019,
+          "n_rebalance_days": 166
+        }
+      },
+      {
+        "window": 4,
+        "train_start": "2021-06-24",
+        "train_end": "2024-09-24",
+        "test_start": "2024-09-26",
+        "test_end": "2025-06-27",
+        "gross_sharpe": 0.1543,
+        "net_sharpe": 0.0577,
+        "gross_annual_return": 0.0116,
+        "annual_return": -0.007,
+        "max_drawdown": -0.1456,
+        "total_trades": 143,
+        "hit_rate": 0.5426,
+        "cost_breakdown": {
+          "total_cost": 0.01380616323708091,
+          "fee_cost": 0.009204108824720607,
+          "slippage_cost": 0.004602054412360303,
+          "total_turnover": 9.204108824720606,
+          "avg_daily_turnover": 0.04895802566340748,
+          "n_rebalance_days": 143
+        }
+      },
+      {
+        "window": 5,
+        "train_start": "2021-06-24",
+        "train_end": "2025-06-26",
+        "test_start": "2025-06-30",
+        "test_end": "2026-03-27",
+        "gross_sharpe": 1.4358,
+        "net_sharpe": 1.2871,
+        "gross_annual_return": 0.2618,
+        "annual_return": 0.2299,
+        "max_drawdown": -0.1693,
+        "total_trades": 172,
+        "hit_rate": 0.6011,
+        "cost_breakdown": {
+          "total_cost": 0.01915998773253523,
+          "fee_cost": 0.012773325155023486,
+          "slippage_cost": 0.006386662577511743,
+          "total_turnover": 12.773325155023485,
+          "avg_daily_turnover": 0.06794321890969938,
+          "n_rebalance_days": 172
+        }
+      }
+    ]
+  },
+  "baseline": {
+    "metrics": {
+      "sharpeRatio": 1.1041,
+      "annualReturn": 0.1165,
+      "maxDrawdown": -0.1489,
+      "hitRate": 0.5351,
+      "totalTrades": 0,
+      "transactionCosts": {
+        "feeBps": 10.0,
+        "slippageBps": 5.0,
+        "netSharpe": 1.1041
+      },
+      "walkForward": {
+        "windows": 5,
+        "positiveWindows": 5,
+        "avgOosSharpe": 1.1041
+      },
+      "customMetrics": {}
+    },
+    "windows": [
+      {
+        "window": 1,
+        "train_start": "2021-06-24",
+        "train_end": "2022-06-27",
+        "test_start": "2022-06-29",
+        "test_end": "2023-03-28",
+        "gross_sharpe": 0.1384,
+        "net_sharpe": 0.1384,
+        "gross_annual_return": 0.0095,
+        "annual_return": 0.0095,
+        "max_drawdown": -0.1489,
+        "total_trades": 0,
+        "hit_rate": 0.4787,
+        "cost_breakdown": {
+          "total_cost": 0.0,
+          "fee_cost": 0.0,
+          "slippage_cost": 0.0,
+          "total_turnover": 0.0,
+          "avg_daily_turnover": 0.0,
+          "n_rebalance_days": 0
+        }
+      },
+      {
+        "window": 2,
+        "train_start": "2021-06-24",
+        "train_end": "2023-03-27",
+        "test_start": "2023-03-29",
+        "test_end": "2023-12-26",
+        "gross_sharpe": 1.4771,
+        "net_sharpe": 1.4771,
+        "gross_annual_return": 0.1575,
+        "annual_return": 0.1575,
+        "max_drawdown": -0.097,
+        "total_trades": 0,
+        "hit_rate": 0.5,
+        "cost_breakdown": {
+          "total_cost": 0.0,
+          "fee_cost": 0.0,
+          "slippage_cost": 0.0,
+          "total_turnover": 0.0,
+          "avg_daily_turnover": 0.0,
+          "n_rebalance_days": 0
+        }
+      },
+      {
+        "window": 3,
+        "train_start": "2021-06-24",
+        "train_end": "2023-12-22",
+        "test_start": "2023-12-27",
+        "test_end": "2024-09-25",
+        "gross_sharpe": 1.6275,
+        "net_sharpe": 1.6275,
+        "gross_annual_return": 0.1697,
+        "annual_return": 0.1697,
+        "max_drawdown": -0.0507,
+        "total_trades": 0,
+        "hit_rate": 0.5426,
+        "cost_breakdown": {
+          "total_cost": 0.0,
+          "fee_cost": 0.0,
+          "slippage_cost": 0.0,
+          "total_turnover": 0.0,
+          "avg_daily_turnover": 0.0,
+          "n_rebalance_days": 0
+        }
+      },
+      {
+        "window": 4,
+        "train_start": "2021-06-24",
+        "train_end": "2024-09-24",
+        "test_start": "2024-09-26",
+        "test_end": "2025-06-27",
+        "gross_sharpe": 0.6331,
+        "net_sharpe": 0.6331,
+        "gross_annual_return": 0.0783,
+        "annual_return": 0.0783,
+        "max_drawdown": -0.1154,
+        "total_trades": 0,
+        "hit_rate": 0.5638,
+        "cost_breakdown": {
+          "total_cost": 0.0,
+          "fee_cost": 0.0,
+          "slippage_cost": 0.0,
+          "total_turnover": 0.0,
+          "avg_daily_turnover": 0.0,
+          "n_rebalance_days": 0
+        }
+      },
+      {
+        "window": 5,
+        "train_start": "2021-06-24",
+        "train_end": "2025-06-26",
+        "test_start": "2025-06-30",
+        "test_end": "2026-03-27",
+        "gross_sharpe": 1.6444,
+        "net_sharpe": 1.6444,
+        "gross_annual_return": 0.1677,
+        "annual_return": 0.1677,
+        "max_drawdown": -0.0624,
+        "total_trades": 0,
+        "hit_rate": 0.5904,
+        "cost_breakdown": {
+          "total_cost": 0.0,
+          "fee_cost": 0.0,
+          "slippage_cost": 0.0,
+          "total_turnover": 0.0,
+          "avg_daily_turnover": 0.0,
+          "n_rebalance_days": 0
+        }
+      }
+    ]
+  }
+}

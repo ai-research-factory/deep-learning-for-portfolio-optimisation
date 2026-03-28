@@ -7,7 +7,7 @@ import pytest
 from unittest.mock import patch
 from sklearn.preprocessing import StandardScaler
 
-from src.backtest import BacktestConfig, WalkForwardValidator, compute_metrics, calculate_costs
+from src.backtest import BacktestConfig, WalkForwardValidator, compute_metrics, calculate_costs, TransactionCostModel, CostBreakdown
 from src.data_pipeline import compute_returns, prepare_sequences
 from src.model import PortfolioLSTM, SharpeLoss
 
@@ -197,3 +197,99 @@ class TestMetrics:
         positions = pd.Series([1.0, 1.0, 0.0, 1.0])
         net = calculate_costs(returns, positions, config)
         assert (net <= returns).all()
+
+
+class TestTransactionCostModel:
+    """Tests for the TransactionCostModel class."""
+
+    def test_zero_cost_returns_gross(self):
+        """With zero costs, net returns should equal gross returns."""
+        cost_model = TransactionCostModel(fee_bps=0.0, slippage_bps=0.0)
+        dates = pd.date_range("2024-01-01", periods=5, freq="B")
+        gross = pd.Series([0.01, 0.02, -0.01, 0.015, 0.005], index=dates)
+        weights = np.array([
+            [0.5, 0.5],
+            [0.6, 0.4],
+            [0.7, 0.3],
+            [0.55, 0.45],
+            [0.5, 0.5],
+        ])
+        net, breakdown = cost_model.apply_costs(gross, weights)
+        pd.testing.assert_series_equal(net, gross)
+        assert breakdown.total_cost == 0.0
+
+    def test_costs_reduce_returns(self):
+        """Positive costs should reduce net returns vs gross."""
+        cost_model = TransactionCostModel(fee_bps=10.0, slippage_bps=5.0)
+        dates = pd.date_range("2024-01-01", periods=5, freq="B")
+        gross = pd.Series([0.01, 0.02, -0.01, 0.015, 0.005], index=dates)
+        weights = np.array([
+            [0.5, 0.5],
+            [0.6, 0.4],
+            [0.7, 0.3],
+            [0.55, 0.45],
+            [0.5, 0.5],
+        ])
+        net, breakdown = cost_model.apply_costs(gross, weights)
+        assert (net <= gross).all()
+        assert breakdown.total_cost > 0
+        assert breakdown.fee_cost > 0
+        assert breakdown.slippage_cost > 0
+
+    def test_higher_costs_lower_returns(self):
+        """Higher cost levels should produce lower net returns."""
+        dates = pd.date_range("2024-01-01", periods=10, freq="B")
+        gross = pd.Series(np.random.randn(10) * 0.01, index=dates)
+        weights = np.random.dirichlet(np.ones(3), size=10)
+
+        low_model = TransactionCostModel(fee_bps=5.0, slippage_bps=2.5)
+        high_model = TransactionCostModel(fee_bps=20.0, slippage_bps=10.0)
+
+        net_low, _ = low_model.apply_costs(gross, weights)
+        net_high, _ = high_model.apply_costs(gross, weights)
+
+        assert net_low.sum() > net_high.sum()
+
+    def test_turnover_computation(self):
+        """Turnover should correctly sum absolute weight changes."""
+        cost_model = TransactionCostModel(fee_bps=10.0, slippage_bps=5.0)
+        weights = np.array([
+            [0.5, 0.5],
+            [0.7, 0.3],  # change: |0.2| + |0.2| = 0.4
+            [0.7, 0.3],  # change: 0 (no rebalance)
+        ])
+        turnover = cost_model.compute_turnover(weights)
+        assert len(turnover) == 3
+        assert turnover[0] == 0.0
+        np.testing.assert_almost_equal(turnover[1], 0.4)
+        np.testing.assert_almost_equal(turnover[2], 0.0)
+
+    def test_cost_breakdown_fields(self):
+        """Cost breakdown should have all required fields."""
+        cost_model = TransactionCostModel(fee_bps=10.0, slippage_bps=5.0)
+        dates = pd.date_range("2024-01-01", periods=3, freq="B")
+        gross = pd.Series([0.01, 0.02, -0.01], index=dates)
+        weights = np.array([[0.5, 0.5], [0.7, 0.3], [0.6, 0.4]])
+        _, breakdown = cost_model.apply_costs(gross, weights)
+        assert isinstance(breakdown, CostBreakdown)
+        assert breakdown.total_cost == breakdown.fee_cost + breakdown.slippage_cost
+        assert breakdown.total_turnover >= 0
+        assert breakdown.avg_daily_turnover >= 0
+
+    def test_from_config(self):
+        """TransactionCostModel.from_config should use config values."""
+        config = BacktestConfig(fee_bps=15.0, slippage_bps=7.5)
+        cost_model = TransactionCostModel.from_config(config)
+        assert cost_model.fee_bps == 15.0
+        assert cost_model.slippage_bps == 7.5
+        assert cost_model.total_cost_bps == 22.5
+
+    def test_no_rebalance_no_cost(self):
+        """Constant weights should incur zero costs."""
+        cost_model = TransactionCostModel(fee_bps=10.0, slippage_bps=5.0)
+        dates = pd.date_range("2024-01-01", periods=5, freq="B")
+        gross = pd.Series([0.01, 0.02, -0.01, 0.015, 0.005], index=dates)
+        weights = np.ones((5, 3)) / 3  # constant equal weights
+        net, breakdown = cost_model.apply_costs(gross, weights)
+        pd.testing.assert_series_equal(net, gross)
+        assert breakdown.total_cost == 0.0

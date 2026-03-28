@@ -20,6 +20,17 @@ class BacktestConfig:
 
 
 @dataclass
+class CostBreakdown:
+    """Detailed transaction cost breakdown for a window."""
+    total_cost: float = 0.0
+    fee_cost: float = 0.0
+    slippage_cost: float = 0.0
+    total_turnover: float = 0.0
+    avg_daily_turnover: float = 0.0
+    n_rebalance_days: int = 0
+
+
+@dataclass
 class BacktestResult:
     """Results from a single walk-forward window."""
     window: int
@@ -29,10 +40,12 @@ class BacktestResult:
     test_end: str
     gross_sharpe: float = 0.0
     net_sharpe: float = 0.0
+    gross_annual_return: float = 0.0
     annual_return: float = 0.0
     max_drawdown: float = 0.0
     total_trades: int = 0
     hit_rate: float = 0.0
+    cost_breakdown: Optional[CostBreakdown] = field(default=None, repr=False)
     pnl_series: Optional[pd.Series] = field(default=None, repr=False)
 
 
@@ -72,6 +85,73 @@ class WalkForwardValidator:
                 list(range(train_start, train_end)),
                 list(range(test_start, test_end)),
             )
+
+
+class TransactionCostModel:
+    """Detailed transaction cost model with proportional fees and slippage.
+
+    Computes costs from portfolio weight changes (turnover) each day,
+    applying separate fee and slippage components.
+    """
+
+    def __init__(self, fee_bps: float = 10.0, slippage_bps: float = 5.0):
+        self.fee_bps = fee_bps
+        self.slippage_bps = slippage_bps
+
+    @property
+    def total_cost_bps(self) -> float:
+        return self.fee_bps + self.slippage_bps
+
+    def compute_turnover(self, weights: np.ndarray) -> np.ndarray:
+        """Compute daily turnover from weight changes.
+
+        Args:
+            weights: Array of shape (T, n_assets) with portfolio weights.
+
+        Returns:
+            Array of shape (T,) with daily turnover (sum of absolute weight changes).
+        """
+        weight_changes = np.abs(np.diff(weights, axis=0)).sum(axis=1)
+        return np.concatenate([[0.0], weight_changes])
+
+    def apply_costs(
+        self,
+        gross_returns: pd.Series,
+        weights: np.ndarray,
+    ) -> tuple[pd.Series, CostBreakdown]:
+        """Apply transaction costs to gross portfolio returns.
+
+        Args:
+            gross_returns: Gross portfolio returns series.
+            weights: Portfolio weights array (T, n_assets).
+
+        Returns:
+            Tuple of (net_returns, cost_breakdown).
+        """
+        turnover = self.compute_turnover(weights)
+        turnover_series = pd.Series(turnover, index=gross_returns.index)
+
+        fee_costs = turnover_series * (self.fee_bps / 10000)
+        slippage_costs = turnover_series * (self.slippage_bps / 10000)
+        total_costs = fee_costs + slippage_costs
+
+        net_returns = gross_returns - total_costs
+
+        n_rebalance = int((turnover_series > 0.01).sum())
+        breakdown = CostBreakdown(
+            total_cost=float(total_costs.sum()),
+            fee_cost=float(fee_costs.sum()),
+            slippage_cost=float(slippage_costs.sum()),
+            total_turnover=float(turnover_series.sum()),
+            avg_daily_turnover=float(turnover_series.mean()),
+            n_rebalance_days=n_rebalance,
+        )
+
+        return net_returns, breakdown
+
+    @classmethod
+    def from_config(cls, config: BacktestConfig) -> "TransactionCostModel":
+        return cls(fee_bps=config.fee_bps, slippage_bps=config.slippage_bps)
 
 
 def calculate_costs(returns: pd.Series, positions: pd.Series, config: BacktestConfig) -> pd.Series:
