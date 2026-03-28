@@ -40,9 +40,9 @@ Results from `reports/cycle_3/metrics.json`:
 
 | Metric | LSTM Model | 1/N Baseline |
 |---|---|---|
-| Avg OOS Sharpe (net) | 0.8684 | 1.1041 |
-| Annual Return | 12.96% | 11.65% |
-| Max Drawdown | -14.65% | -14.89% |
+| Avg OOS Sharpe (net) | 0.8945 | 1.1041 |
+| Annual Return | 13.12% | 11.65% |
+| Max Drawdown | -14.50% | -14.89% |
 | Hit Rate | 55.0% | 53.5% |
 | Positive Windows | 4/5 | 5/5 |
 
