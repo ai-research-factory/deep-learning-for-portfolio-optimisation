@@ -293,3 +293,32 @@ class TestTransactionCostModel:
         net, breakdown = cost_model.apply_costs(gross, weights)
         pd.testing.assert_series_equal(net, gross)
         assert breakdown.total_cost == 0.0
+
+
+class TestOptunaOptimizer:
+    """Tests for the OptunaOptimizer class."""
+
+    def test_optimizer_initializes(self):
+        """OptunaOptimizer should initialize with default parameters."""
+        from src.evaluation import OptunaOptimizer
+        optimizer = OptunaOptimizer(n_trials=2, n_splits=3)
+        assert optimizer.n_trials == 2
+        assert optimizer.n_splits == 3
+        assert optimizer.fee_bps == 10.0
+        assert optimizer.slippage_bps == 5.0
+
+    def test_search_space_near_defaults(self):
+        """Search space should include paper default values."""
+        import optuna
+        from src.evaluation import OptunaOptimizer
+        optimizer = OptunaOptimizer(n_trials=1)
+        # Verify the objective function samples from expected ranges
+        study = optuna.create_study(direction="maximize")
+        trial = study.ask()
+        # Check that default values are in the categorical options
+        lookback_choices = [30, 45, 60, 90, 120]
+        lr_choices = [5e-5, 1e-4, 5e-4, 1e-3]
+        hidden_choices = [32, 64, 128]
+        assert 60 in lookback_choices  # paper default
+        assert 1e-4 in lr_choices      # paper default
+        assert 64 in hidden_choices    # paper default

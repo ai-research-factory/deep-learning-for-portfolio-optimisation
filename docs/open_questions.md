@@ -19,7 +19,13 @@
 - The paper does not specify exact hyperparameters (hidden size, learning rate, epochs). Current defaults (hidden=64, lr=1e-4, epochs=50) are reasonable starting points.
 - Exact walk-forward window count is not specified in the paper; we use n_splits=5 per Phase 3 task instructions.
 
-## Future Improvements (Phase 5+)
-- Hyperparameter optimization via Optuna (Phase 5) — should optimize for net Sharpe, not gross
+## Hyperparameter Optimization (Phase 5)
+- Optuna optimization (20 trials, TPE sampler) found that longer lookback (120 vs 60 days) and lower learning rate (5e-5 vs 1e-4) with more epochs (100 vs 50) significantly improve performance.
+- The optimized model now outperforms 1/N baseline (net Sharpe 1.43 vs 1.24), but the search space was intentionally constrained to near paper defaults. A wider search could yield different results.
+- 20 trials is a modest budget. The best trial was #13, suggesting the search may not have fully converged, though improvement plateaued after that.
+- The optimized model has much lower turnover (~1.1% avg daily) vs default params (~3.75%), contributing to better net performance.
+
+## Future Improvements (Phase 6+)
+- Robustness validation and cost sensitivity of optimized params (Phase 6)
 - Alternative architectures — CNN (Phase 7)
-- Turnover regularization could narrow the gross-net gap
+- Turnover regularization could further narrow the gross-net gap

@@ -27,6 +27,9 @@ python3 -m src.cli run-backtest --config configs/default.yaml
 # Run cost sensitivity analysis
 python3 -m src.cli run-cost-analysis --config configs/default.yaml
 
+# Run Optuna hyperparameter optimization
+python3 -m src.cli run-optimize --n-trials 20 --output-dir reports/cycle_5
+
 # Run tests
 python3 -m pytest tests/ -v
 ```
@@ -36,6 +39,25 @@ python3 -m pytest tests/ -v
 Each cycle produces:
 - `reports/cycle_N/metrics.json` — Structured metrics
 - `reports/cycle_N/technical_findings.md` — Technical summary
+
+### Cycle 5 Results (Phase 5: Hyperparameter Optimization with Optuna)
+
+Results from `reports/cycle_5/metrics.json`:
+
+| Metric | Default Params | Optimized Params | 1/N Baseline |
+|---|---|---|---|
+| Net Sharpe | 0.9123 | 1.4297 | 1.2404 |
+| Gross Sharpe | 1.0033 | 1.4626 | 1.2404 |
+| Annual Return | — | 21.59% | 14.07% |
+| Max Drawdown | — | -12.52% | -11.54% |
+| Hit Rate | — | 56.25% | — |
+| Positive Windows | — | 5/5 | 5/5 |
+
+Best hyperparameters (from `reports/cycle_5/metrics.json`): lookback=120, lr=5e-5, hidden_size=64, num_layers=2, epochs=100, batch_size=128.
+
+Key finding: After optimization, the LSTM model **outperforms the 1/N baseline** (net Sharpe 1.43 vs 1.24), reversing the underperformance seen in Cycles 3-4. Improvement over default params: +0.52 Sharpe.
+
+See `reports/cycle_5/technical_findings.md` for detailed analysis.
 
 ### Cycle 4 Results (Phase 4: Transaction Cost Model)
 

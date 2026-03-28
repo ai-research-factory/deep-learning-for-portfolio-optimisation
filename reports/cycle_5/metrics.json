@@ -1,0 +1,46 @@
+{
+  "sharpeRatio": 1.4626,
+  "annualReturn": 0.2159,
+  "maxDrawdown": -0.1252,
+  "hitRate": 0.5625,
+  "totalTrades": 334,
+  "transactionCosts": {
+    "feeBps": 10.0,
+    "slippageBps": 5.0,
+    "netSharpe": 1.4297
+  },
+  "walkForward": {
+    "windows": 5,
+    "positiveWindows": 5,
+    "avgOosSharpe": 1.4297
+  },
+  "customMetrics": {
+    "baseline_sharpe": 1.2404,
+    "baseline_net_sharpe": 1.2404,
+    "baseline_annual_return": 0.1407,
+    "baseline_max_drawdown": -0.1154,
+    "default_params_net_sharpe": 0.9123,
+    "default_params_gross_sharpe": 1.0033,
+    "optimization": {
+      "n_trials": 20,
+      "best_trial": 13,
+      "best_params": {
+        "lookback": 120,
+        "lr": 5e-05,
+        "hidden_size": 64,
+        "num_layers": 2,
+        "epochs": 100,
+        "batch_size": 128
+      },
+      "best_avg_net_sharpe": 1.37746,
+      "improvement_over_default": 0.5174
+    },
+    "per_window_turnover": {
+      "window_1": 0.0066,
+      "window_2": 0.0072,
+      "window_3": 0.0169,
+      "window_4": 0.0167,
+      "window_5": 0.0089
+    }
+  }
+}

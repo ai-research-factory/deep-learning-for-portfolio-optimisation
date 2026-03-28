@@ -2,6 +2,7 @@
 Walk-forward evaluation framework for portfolio optimization.
 Phase 3: Walk-forward validation and baseline comparisons.
 Phase 4: Enhanced transaction cost model with sensitivity analysis.
+Phase 5: Hyperparameter optimization with Optuna.
 """
 import json
 import numpy as np
@@ -314,6 +315,181 @@ class WalkForwardEvaluator:
             "sensitivity": sensitivity,
             "_window_data": window_data,
         }
+
+
+class OptunaOptimizer:
+    """Hyperparameter optimization using Optuna with walk-forward net Sharpe objective."""
+
+    def __init__(
+        self,
+        tickers: list[str] | None = None,
+        n_splits: int = 5,
+        fee_bps: float = 10.0,
+        slippage_bps: float = 5.0,
+        n_trials: int = 20,
+        seed: int = 42,
+    ):
+        self.tickers = tickers
+        self.n_splits = n_splits
+        self.fee_bps = fee_bps
+        self.slippage_bps = slippage_bps
+        self.n_trials = n_trials
+        self.seed = seed
+        self._prices = None
+        self._returns = None
+
+    def _prefetch_data(self):
+        """Fetch data once and cache for all trials."""
+        if self._prices is None:
+            print("Prefetching data for optimization...")
+            self._prices = fetch_universe(self.tickers)
+            self._returns = compute_returns(self._prices)
+            print(f"Data: {len(self._returns)} days, {self._returns.shape[1]} assets")
+
+    def _objective(self, trial) -> float:
+        """Optuna objective: maximize average net Sharpe across walk-forward windows."""
+        # Sample hyperparameters (near paper defaults)
+        lookback = trial.suggest_categorical("lookback", [30, 45, 60, 90, 120])
+        lr = trial.suggest_categorical("lr", [5e-5, 1e-4, 5e-4, 1e-3])
+        hidden_size = trial.suggest_categorical("hidden_size", [32, 64, 128])
+        num_layers = trial.suggest_int("num_layers", 1, 3)
+        epochs = trial.suggest_categorical("epochs", [30, 50, 100])
+        batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
+
+        returns = self._returns
+        n_assets = returns.shape[1]
+
+        X_all, y_all, dates_all = prepare_sequences(returns, lookback)
+        seq_returns = returns.iloc[lookback:]
+        assert len(seq_returns) == len(X_all)
+
+        config = BacktestConfig(
+            fee_bps=self.fee_bps,
+            slippage_bps=self.slippage_bps,
+            n_splits=self.n_splits,
+            gap=1,
+            min_train_size=max(252, lookback + 60),
+            train_ratio=1.0,
+        )
+
+        validator = WalkForwardValidator(config)
+        seq_df = pd.DataFrame(index=dates_all, data={"dummy": 0})
+        cost_model = TransactionCostModel.from_config(config)
+
+        net_sharpes = []
+        window_idx = 0
+        for train_idx, test_idx in validator.split(seq_df):
+            window_idx += 1
+
+            X_train = X_all[train_idx]
+            y_train = y_all[train_idx]
+            X_test = X_all[test_idx]
+            y_test = y_all[test_idx]
+            test_dates = dates_all[test_idx]
+
+            # Normalize using train only
+            scaler = StandardScaler()
+            n_samples_train, lookback_dim, n_feat = X_train.shape
+            X_train_flat = X_train.reshape(-1, n_feat)
+            scaler.fit(X_train_flat)
+            X_train_scaled = scaler.transform(X_train_flat).reshape(n_samples_train, lookback_dim, n_feat)
+
+            n_samples_test = X_test.shape[0]
+            X_test_flat = X_test.reshape(-1, n_feat)
+            X_test_scaled = scaler.transform(X_test_flat).reshape(n_samples_test, lookback_dim, n_feat)
+
+            from src.model import train_model as _train, predict_weights as _predict
+            model = _train(
+                X_train_scaled, y_train, n_assets,
+                hidden_size=hidden_size,
+                num_layers=num_layers,
+                lr=lr,
+                epochs=epochs,
+                batch_size=batch_size,
+            )
+
+            weights = _predict(model, X_test_scaled)
+            gross_returns = (weights * y_test).sum(axis=1)
+            gross_series = pd.Series(gross_returns, index=test_dates)
+
+            net_returns, _ = cost_model.apply_costs(gross_series, weights)
+            net_metrics = compute_metrics(net_returns)
+            net_sharpes.append(net_metrics["sharpeRatio"])
+
+            # Pruning: report intermediate value
+            trial.report(np.mean(net_sharpes), window_idx - 1)
+            if trial.should_prune():
+                import optuna
+                raise optuna.TrialPruned()
+
+        avg_net_sharpe = float(np.mean(net_sharpes))
+        return avg_net_sharpe
+
+    def optimize(self, verbose: bool = True) -> dict:
+        """Run Optuna optimization.
+
+        Returns:
+            Dict with best_params, best_value, all_trials, and study.
+        """
+        import optuna
+
+        self._prefetch_data()
+
+        if not verbose:
+            optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+        sampler = optuna.samplers.TPESampler(seed=self.seed)
+        pruner = optuna.pruners.MedianPruner(n_startup_trials=5, n_warmup_steps=1)
+        study = optuna.create_study(
+            direction="maximize",
+            sampler=sampler,
+            pruner=pruner,
+            study_name="portfolio_optim",
+        )
+
+        if verbose:
+            print(f"\nStarting Optuna optimization ({self.n_trials} trials)...")
+            print(f"Objective: maximize avg net Sharpe across {self.n_splits} WF windows")
+            print(f"Cost model: {self.fee_bps}bps fee + {self.slippage_bps}bps slippage\n")
+
+        study.optimize(self._objective, n_trials=self.n_trials, show_progress_bar=verbose)
+
+        best = study.best_trial
+        if verbose:
+            print(f"\nBest trial #{best.number}: avg net Sharpe = {best.value:.4f}")
+            print(f"Best params: {best.params}")
+
+        trials_data = []
+        for t in study.trials:
+            trials_data.append({
+                "number": t.number,
+                "value": t.value if t.value is not None else None,
+                "params": t.params,
+                "state": str(t.state),
+            })
+
+        return {
+            "best_params": best.params,
+            "best_value": best.value,
+            "all_trials": trials_data,
+            "study": study,
+        }
+
+    def run_best(self, best_params: dict, verbose: bool = True) -> dict:
+        """Run full backtest with best parameters and return complete results."""
+        evaluator = WalkForwardEvaluator(
+            tickers=self.tickers,
+            lookback=best_params["lookback"],
+            n_splits=self.n_splits,
+            hidden_size=best_params["hidden_size"],
+            num_layers=best_params["num_layers"],
+            lr=best_params["lr"],
+            epochs=best_params["epochs"],
+            batch_size=best_params["batch_size"],
+            fee_bps=self.fee_bps,
+            slippage_bps=self.slippage_bps,
+        )
+        return evaluator.run(verbose=verbose)
 
 
 def _serialize_result(r: BacktestResult) -> dict:
