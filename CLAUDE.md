@@ -7,7 +7,7 @@ proj_e5603456
 ReinforcementLearning, Other
 
 ## Current Cycle
-2
+3
 
 ## Objective
 Implement, validate, and iteratively improve the paper's approach with production-quality standards.
@@ -15,22 +15,22 @@ Implement, validate, and iteratively improve the paper's approach with productio
 
 ## Design Brief
 ### Problem
-Traditional portfolio optimization, such as Markowitz's Mean-Variance Optimization, is a two-step process: first, forecast future asset returns and covariances, and second, use these forecasts as inputs to an optimization solver to find optimal portfolio weights. This process is highly sensitive to estimation errors in the first step, which often leads to unstable and poorly performing portfolios. This paper proposes an end-to-end deep learning framework that bypasses the explicit forecasting step. The model directly ingests historical market data and outputs portfolio weights, with the neural network's parameters being trained to directly maximize the portfolio's Sharpe ratio on the training data. This allows the model to learn complex, non-linear patterns from the data to construct a dynamically rebalanced portfolio.
+The paper proposes a deep learning framework for portfolio optimization that aims to directly maximize the portfolio's Sharpe ratio. This end-to-end approach bypasses the traditional two-step process, which typically involves first forecasting asset returns and covariances, and then using these forecasts as inputs to a separate optimization algorithm (like mean-variance optimization). The proposed model takes raw market data (e.g., historical prices) as input and directly outputs the optimal portfolio weights for a given universe of assets, in this case, Exchange-Traded Funds (ETFs). The core innovation lies in using a custom loss function that is a differentiable proxy for the negative Sharpe ratio, allowing the neural network to be trained via gradient descent to find a policy that maximizes risk-adjusted returns.
 
 ### Datasets
-yfinance API for a universe of US-listed ETFs. Example universe: ['SPY', 'QQQ', 'IWM', 'EFA', 'EEM', 'TLT', 'HYG', 'GLD', 'DBC']
+yfinance API for daily OHLCV data of major US ETFs. Example universe: ['SPY', 'QQQ', 'IWM', 'EFA', 'EEM', 'TLT', 'LQD', 'GLD', 'VNQ', 'DBC']
 
 ### Targets
-The primary optimization target is the portfolio's Sharpe Ratio. The model's direct output is a vector of portfolio weights for the next rebalancing period.
+Direct optimization of the portfolio's out-of-sample Sharpe ratio.
 
 ### Model
-The model is a deep neural network (likely an LSTM or CNN) that takes a lookback window of historical market data (e.g., 60 days of price returns) for a universe of assets as input. The final layer of the network is a softmax layer, which outputs a vector of positive portfolio weights that sum to one (enforcing a long-only, fully invested strategy). The crucial component is the custom loss function, which is the negative of the portfolio's Sharpe ratio, made differentiable to allow for gradient-based optimization. The network is trained end-to-end to learn a policy that maps market history directly to portfolio allocations that maximize future Sharpe ratio.
+The model is a neural network, likely a Recurrent Neural Network (RNN) such as an LSTM, that takes a rolling window of historical market data for multiple assets as input. The output layer uses a softmax activation function to produce a set of portfolio weights that sum to one. The key component is the training objective: the model is trained to minimize a custom loss function representing the negative Sharpe ratio of the portfolio's returns over a training batch. This allows the network to learn a mapping from market state to optimal allocation directly.
 
 ### Training
-The model is trained using a walk-forward validation scheme. For each fold, the model is trained on a rolling window of historical data (e.g., 5 years) to maximize the in-sample Sharpe ratio. The trained model is then used to generate portfolio weights for the subsequent out-of-sample period (e.g., 1 year). The model is then retrained on an updated rolling window that includes the previous test period. This process is repeated across the entire dataset. The optimizer is typically Adam.
+The model is trained on rolling windows of historical data. The training process uses a walk-forward validation methodology. In each fold, the model is trained on a period of data and evaluated on the subsequent, unseen period. The optimizer (e.g., Adam) minimizes the negative Sharpe ratio loss function. The paper does not specify hyperparameters, so reasonable defaults will be used initially (e.g., 60-day lookback, learning rate of 1e-4).
 
 ### Evaluation
-The primary evaluation metric is the out-of-sample Sharpe Ratio, aggregated across all walk-forward splits. Other key metrics include Annualized Return, Annualized Volatility, Maximum Drawdown, and Portfolio Turnover. Performance is evaluated on both a gross basis and a net basis (after accounting for transaction costs). The model's performance will be compared against several baselines: an equal-weight (1/N) portfolio, a market-cap weighted benchmark (e.g., SPY), and potentially a traditional Mean-Variance Optimization (MVO) strategy.
+The primary evaluation metric is the out-of-sample Sharpe ratio, calculated through a rigorous walk-forward backtest with at least 5 expanding or rolling windows. Performance will be compared against baseline strategies, including an equal-weight (1/N) portfolio and a buy-and-hold strategy on a market benchmark (e.g., SPY). Both gross and net performance (after accounting for transaction costs) will be reported. Other relevant metrics include annualized return, volatility, and maximum drawdown.
 
 
 ## データ取得方法（共通データ基盤）
@@ -69,7 +69,7 @@ df = df.set_index("timestamp")
 
 ## Preflight チェック（実装開始前に必ず実施）
 
-**Phase の実装コードを書く前に**、以下のチェックを実施し結果を `reports/cycle_2/preflight.md` に保存すること。
+**Phase の実装コードを書く前に**、以下のチェックを実施し結果を `reports/cycle_3/preflight.md` に保存すること。
 
 ### 1. データ境界表
 以下の表を埋めて、未来データ混入がないことを確認:
@@ -105,30 +105,29 @@ df = df.set_index("timestamp")
 
 **preflight.md が作成されるまで、Phase の実装コードに進まないこと。**
 
-## ★ 今回のタスク (Cycle 2)
+## ★ 今回のタスク (Cycle 3)
 
 
-### Phase 2: データパイプライン構築 [Track ]
+### Phase 3: ウォークフォワード評価フレームワークの実装 [Track ]
 
 **Track**:  (A=論文再現 / B=近傍改善 / C=独自探索)
-**ゴール**: yfinanceを使用してETFデータを取得し、モデルの入力形式に前処理するパイプラインを構築する。
+**ゴール**: ウォークフォワード検証を実装し、モデルのパフォーマンスをベースライン（均等配分）と比較評価する。
 
 **具体的な作業指示**:
-1. `src/data_pipeline.py`を作成する。
-2. `download_etf_data`関数を実装し、ティッカーリスト `['SPY', 'TLT', 'GLD', 'QQQ', 'EFA']` と期間 `2010-01-01` から `2023-12-31` の日足データをyfinanceで取得し、`data/raw/etf_prices.csv`に保存する。
-3. `preprocess_data`関数を実装し、`etf_prices.csv`を読み込み、日次リターンを計算し、`data/processed/etf_returns.csv`に保存する。
-4. `create_rolling_windows`関数を実装する。この関数はリターンデータを入力とし、ルックバック期間（60日）のデータ `X` と、次の1日のリターン `y` のペアを生成する。`X`の形状は `(num_samples, 60, num_assets)`、`y`の形状は `(num_samples, num_assets)` となる。
-5. `src/cli.py`に `download-data` と `preprocess-data` のサブコマンドを追加する。
+1. `src/evaluation.py`に`WalkForwardValidator`クラスを作成する。`n_splits=5`のローリングウィンドウ方式で時系列データを分割する機能を実装する。
+2. `run_backtest`関数を実装し、ウォークフォワードの各分割でモデルを学習・評価するループを実行する。評価期間のポートフォリオリターンを計算する。
+3. バックテスト結果から、Sharpe比、年率リターン、最大ドローダウンを計算する`calculate_metrics`関数を実装する。
+4. 均等配分（1/N）ポートフォリオをベースラインとして実装し、同様に評価する。
+5. `src/cli.py`に`run-backtest`コマンドを追加し、結果を`reports/cycle_3/backtest_results.json`に保存する。
 
 **期待される出力ファイル**:
-- src/data_pipeline.py
-- src/cli.py
-- data/processed/etf_returns.csv
+- src/evaluation.py
+- reports/cycle_3/backtest_results.json
 
 **受入基準 (これを全て満たすまで完了としない)**:
-- `python -m src.cli download-data`が成功し、`data/raw/etf_prices.csv`が生成される。
-- `python -m src.cli preprocess-data`が成功し、`data/processed/etf_returns.csv`が生成される。
-- 生成されたデータにNaNが含まれていないことを確認する。
+- `run-backtest`コマンドが5回のウォークフォワード分割で完了する
+- `backtest_results.json`にモデルと1/Nベースライン両方のSharpe比、年率リターン、最大ドローダウンが記録されている
+- テストデータが学習プロセスにリークしていないことがコードレビューで確認できる
 
 
 
@@ -149,18 +148,18 @@ df = df.set_index("timestamp")
 
 ## 全体Phase計画 (参考)
 
-✓ Phase 1: コアモデルとSharpe損失関数の実装 — PyTorchでポートフォリオ最適化モデルと微分可能なSharpe比損失関数を実装し、合成データで動作確認する。
-→ Phase 2: データパイプライン構築 — yfinanceを使用してETFデータを取得し、モデルの入力形式に前処理するパイプラインを構築する。
-  Phase 3: 基本学習・評価ループの実装 — 単一の時系列分割（80/20）でモデルを学習させ、テストセットでのパフォーマンスを評価する。
-  Phase 4: ウォークフォワード検証フレームワークの実装 — 厳密なバックテストのためにウォークフォワード検証を実装し、1/Nポートフォリオと比較する。
-  Phase 5: 取引コストモデルの導入 — 取引コストを考慮したネットパフォーマンスを計算し、コストがパフォーマンスに与える影響を評価する。
-  Phase 6: ハイパーパラメータ最適化 — Optunaを使い、最初の訓練期間でモデルの主要なハイパーパラメータを最適化する。
-  Phase 7: 最適化済みモデルでのロバスト性検証 — 最適化されたハイパーパラメータを使用して、より多くの分割数でウォークフォワード検証を行い、モデルの安定性を評価する。
-  Phase 8: 特徴量エンジニアリングの探求 — テクニカル指標などの追加特徴量を導入し、モデルのパフォーマンスが向上するかを検証する。
-  Phase 9: ポートフォリオウェイトの挙動分析 — モデルが生成したポートフォリオウェイトを可視化・分析し、その投資行動を理解する。
-  Phase 10: 代替モデルアーキテクチャの比較 — LSTMの代わりにシンプルなCNNベースのモデルを実装し、パフォーマンスを比較評価する。
-  Phase 11: 最終テクニカルレポート生成 — 全フェーズの結果を統合し、再現・改善・探求の成果をまとめた包括的な技術レポートを生成する。
-  Phase 12: エグゼクティブサマリーとコード整備 — 非技術者向けの要約を作成し、テストカバレッジを向上させ、プロジェクトを完成させる。
+✓ Phase 1: コアモデルとSharpe損失関数の実装 — Sharpe比を直接最適化するLSTMモデルとカスタム損失関数を実装し、合成データで学習が機能することを確認する。
+✓ Phase 2: yfinanceデータパイプラインの構築 — yfinance APIを使用して指定されたETFユニバースの日足データを取得し、モデルが利用可能な形式に前処理するパイプラインを構築する。
+→ Phase 3: ウォークフォワード評価フレームワークの実装 — ウォークフォワード検証を実装し、モデルのパフォーマンスをベースライン（均等配分）と比較評価する。
+  Phase 4: 取引コストモデルの導入とネットパフォーマンス評価 — リバランスに伴う取引コストをモデル化し、グロスパフォーマンスとネットパフォーマンスを比較評価する。
+  Phase 5: ハイパーパラメータ最適化 (Optuna) — 学習率、LSTMユニット数、ルックバック期間などの主要なハイパーパラメータをOptunaを用いて最適化する。
+  Phase 6: ロバスト性検証とコスト感度分析 — 最適化されたモデルのロバスト性を評価し、取引コストの変化に対するパフォーマンスの感度を分析する。
+  Phase 7: 代替モデルアーキテクチャ(CNN)の評価 — 論文で指定されていない代替アーキテクチャとして1D-CNNモデルを実装し、LSTMモデルとのパフォーマンスを比較する。
+  Phase 8: 特徴量エンジニアリングと重要度分析 — RSIやMACDなどのテクニカル指標を特徴量として追加し、モデルのパフォーマンスへの影響を評価するとともに、特徴量の重要度を分析する。
+  Phase 9: 市場レジーム別パフォーマンス分析 — 市場のボラティリティに基づきブル/ベア市場などのレジームを定義し、各レジームでのモデルのパフォーマンスを分析する。
+  Phase 10: 代替損失関数(Sortino Ratio)の実装 — ダウンサイドリスクに焦点を当てたSortino比を損失関数として実装し、Sharpe比最適化モデルとのパフォーマンス特性を比較する。
+  Phase 11: 最終レポートと結果の可視化 — 全フェーズの結果を統合し、主要な発見をまとめたテクニカルレポートとエクイティカーブを生成する。
+  Phase 12: コードの清掃、テストカバレッジ向上、要約作成 — コードベースの品質を向上させ、非技術者向けの要約を作成してプロジェクトを完了する。
 
 
 ## 評価原則
@@ -217,9 +216,9 @@ df = df.set_index("timestamp")
 
 ## 出力ファイル
 以下のファイルを保存してから完了すること:
-- `reports/cycle_2/preflight.md` — Preflight チェック結果（必須、実装前に作成）
-- `reports/cycle_2/metrics.json` — 下記スキーマに従う（必須）
-- `reports/cycle_2/technical_findings.md` — 実装内容、結果、観察事項
+- `reports/cycle_3/preflight.md` — Preflight チェック結果（必須、実装前に作成）
+- `reports/cycle_3/metrics.json` — 下記スキーマに従う（必須）
+- `reports/cycle_3/technical_findings.md` — 実装内容、結果、観察事項
 
 ### metrics.json 必須スキーマ（Single Source of Truth）
 ```json
