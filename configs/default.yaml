@@ -1,0 +1,27 @@
+# Default configuration for walk-forward backtest
+tickers:
+  - SPY
+  - QQQ
+  - IWM
+  - EFA
+  - EEM
+  - TLT
+  - LQD
+  - GLD
+  - VNQ
+  - DBC
+
+# Walk-forward settings
+n_splits: 5
+lookback: 60
+
+# Model settings
+hidden_size: 64
+num_layers: 2
+lr: 0.0001
+epochs: 50
+batch_size: 64
+
+# Cost model
+fee_bps: 10.0
+slippage_bps: 5.0

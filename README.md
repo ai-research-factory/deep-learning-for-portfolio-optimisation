@@ -18,8 +18,34 @@ pytest tests/
 
 Data is fetched from the ARF Data API at runtime. Do not commit data files.
 
+## Usage
+
+```bash
+# Run walk-forward backtest
+python3 -m src.cli run-backtest --config configs/default.yaml
+
+# Run tests
+python3 -m pytest tests/ -v
+```
+
 ## Reports
 
 Each cycle produces:
 - `reports/cycle_N/metrics.json` — Structured metrics
 - `reports/cycle_N/technical_findings.md` — Technical summary
+
+### Cycle 3 Results (Phase 3: Walk-Forward Evaluation)
+
+Results from `reports/cycle_3/metrics.json`:
+
+| Metric | LSTM Model | 1/N Baseline |
+|---|---|---|
+| Avg OOS Sharpe (net) | 0.8684 | 1.1041 |
+| Annual Return | 12.96% | 11.65% |
+| Max Drawdown | -14.65% | -14.89% |
+| Hit Rate | 55.0% | 53.5% |
+| Positive Windows | 4/5 | 5/5 |
+
+Walk-forward validation: 5 expanding windows, 10 ETF universe, 60-day lookback, transaction costs 15bps.
+
+See `reports/cycle_3/technical_findings.md` for detailed analysis.

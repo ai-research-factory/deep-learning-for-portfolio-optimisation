@@ -1,0 +1,22 @@
+{
+  "sharpeRatio": 0.9471,
+  "annualReturn": 0.1296,
+  "maxDrawdown": -0.1465,
+  "hitRate": 0.55,
+  "totalTrades": 649,
+  "transactionCosts": {
+    "feeBps": 10.0,
+    "slippageBps": 5.0,
+    "netSharpe": 0.8684
+  },
+  "walkForward": {
+    "windows": 5,
+    "positiveWindows": 4,
+    "avgOosSharpe": 0.8684
+  },
+  "customMetrics": {
+    "baseline_sharpe": 1.1041,
+    "baseline_annual_return": 0.1165,
+    "baseline_max_drawdown": -0.1489
+  }
+}

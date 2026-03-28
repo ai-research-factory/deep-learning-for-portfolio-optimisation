@@ -1,0 +1,176 @@
+{
+  "model": {
+    "metrics": {
+      "sharpeRatio": 0.9471,
+      "annualReturn": 0.1296,
+      "maxDrawdown": -0.1465,
+      "hitRate": 0.55,
+      "totalTrades": 649,
+      "transactionCosts": {
+        "feeBps": 10.0,
+        "slippageBps": 5.0,
+        "netSharpe": 0.8684
+      },
+      "walkForward": {
+        "windows": 5,
+        "positiveWindows": 4,
+        "avgOosSharpe": 0.8684
+      },
+      "customMetrics": {}
+    },
+    "windows": [
+      {
+        "window": 1,
+        "train_start": "2021-06-24",
+        "train_end": "2022-06-27",
+        "test_start": "2022-06-29",
+        "test_end": "2023-03-28",
+        "gross_sharpe": -0.6408,
+        "net_sharpe": -0.6645,
+        "annual_return": -0.1304,
+        "max_drawdown": -0.1237,
+        "total_trades": 91,
+        "hit_rate": 0.4681
+      },
+      {
+        "window": 2,
+        "train_start": "2021-06-24",
+        "train_end": "2023-03-27",
+        "test_start": "2023-03-29",
+        "test_end": "2023-12-26",
+        "gross_sharpe": 0.7583,
+        "net_sharpe": 0.7106,
+        "annual_return": 0.0724,
+        "max_drawdown": -0.0644,
+        "total_trades": 97,
+        "hit_rate": 0.516
+      },
+      {
+        "window": 3,
+        "train_start": "2021-06-24",
+        "train_end": "2023-12-22",
+        "test_start": "2023-12-27",
+        "test_end": "2024-09-25",
+        "gross_sharpe": 1.9452,
+        "net_sharpe": 1.7833,
+        "annual_return": 0.2028,
+        "max_drawdown": -0.0683,
+        "total_trades": 168,
+        "hit_rate": 0.5904
+      },
+      {
+        "window": 4,
+        "train_start": "2021-06-24",
+        "train_end": "2024-09-24",
+        "test_start": "2024-09-26",
+        "test_end": "2025-06-27",
+        "gross_sharpe": 0.7538,
+        "net_sharpe": 0.665,
+        "annual_return": 0.1124,
+        "max_drawdown": -0.1198,
+        "total_trades": 148,
+        "hit_rate": 0.5479
+      },
+      {
+        "window": 5,
+        "train_start": "2021-06-24",
+        "train_end": "2025-06-26",
+        "test_start": "2025-06-30",
+        "test_end": "2026-03-27",
+        "gross_sharpe": 1.9192,
+        "net_sharpe": 1.8474,
+        "annual_return": 0.3909,
+        "max_drawdown": -0.1465,
+        "total_trades": 145,
+        "hit_rate": 0.6277
+      }
+    ]
+  },
+  "baseline": {
+    "metrics": {
+      "sharpeRatio": 1.1041,
+      "annualReturn": 0.1165,
+      "maxDrawdown": -0.1489,
+      "hitRate": 0.5351,
+      "totalTrades": 0,
+      "transactionCosts": {
+        "feeBps": 10.0,
+        "slippageBps": 5.0,
+        "netSharpe": 1.1041
+      },
+      "walkForward": {
+        "windows": 5,
+        "positiveWindows": 5,
+        "avgOosSharpe": 1.1041
+      },
+      "customMetrics": {}
+    },
+    "windows": [
+      {
+        "window": 1,
+        "train_start": "2021-06-24",
+        "train_end": "2022-06-27",
+        "test_start": "2022-06-29",
+        "test_end": "2023-03-28",
+        "gross_sharpe": 0.1384,
+        "net_sharpe": 0.1384,
+        "annual_return": 0.0095,
+        "max_drawdown": -0.1489,
+        "total_trades": 0,
+        "hit_rate": 0.4787
+      },
+      {
+        "window": 2,
+        "train_start": "2021-06-24",
+        "train_end": "2023-03-27",
+        "test_start": "2023-03-29",
+        "test_end": "2023-12-26",
+        "gross_sharpe": 1.4771,
+        "net_sharpe": 1.4771,
+        "annual_return": 0.1575,
+        "max_drawdown": -0.097,
+        "total_trades": 0,
+        "hit_rate": 0.5
+      },
+      {
+        "window": 3,
+        "train_start": "2021-06-24",
+        "train_end": "2023-12-22",
+        "test_start": "2023-12-27",
+        "test_end": "2024-09-25",
+        "gross_sharpe": 1.6275,
+        "net_sharpe": 1.6275,
+        "annual_return": 0.1697,
+        "max_drawdown": -0.0507,
+        "total_trades": 0,
+        "hit_rate": 0.5426
+      },
+      {
+        "window": 4,
+        "train_start": "2021-06-24",
+        "train_end": "2024-09-24",
+        "test_start": "2024-09-26",
+        "test_end": "2025-06-27",
+        "gross_sharpe": 0.6331,
+        "net_sharpe": 0.6331,
+        "annual_return": 0.0783,
+        "max_drawdown": -0.1154,
+        "total_trades": 0,
+        "hit_rate": 0.5638
+      },
+      {
+        "window": 5,
+        "train_start": "2021-06-24",
+        "train_end": "2025-06-26",
+        "test_start": "2025-06-30",
+        "test_end": "2026-03-27",
+        "gross_sharpe": 1.6444,
+        "net_sharpe": 1.6444,
+        "annual_return": 0.1677,
+        "max_drawdown": -0.0624,
+        "total_trades": 0,
+        "hit_rate": 0.5904
+      }
+    ]
+  }
+}
